@@ -28,6 +28,7 @@ pub mod node;
 pub mod parser;
 
 #[path="../zinc/hal/lpc17xx/platformtree.rs"] mod lpc17xx_pt;
+#[path="../zinc/hal/tm4c123gh6pm/platformtree.rs"] mod tm4c123gh6pm_pt;
 #[path="../zinc/drivers/drivers_pt.rs"] mod drivers_pt;
 
 #[cfg(test)] mod test_helpers;

@@ -17,6 +17,7 @@ use std::rc::Rc;
 use syntax::ext::base::ExtCtxt;
 
 use lpc17xx_pt;
+use tm4c123gh6pm_pt;
 use node;
 
 use super::Builder;
@@ -25,7 +26,8 @@ pub fn attach(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   match node.name {
     Some(ref name) => {
       match name.as_slice() {
-        "lpc17xx" => lpc17xx_pt::attach(builder, cx, node.clone()),
+        "lpc17xx"      => lpc17xx_pt::attach(builder, cx, node.clone()),
+        "tm4c123gh6pm" => tm4c123gh6pm_pt::attach(builder, cx, node.clone()),
         _ => node.materializer.set(Some(fail_build_mcu)),
       }
     },
