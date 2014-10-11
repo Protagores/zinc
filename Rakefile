@@ -179,6 +179,10 @@ when 'k20'
   task :build_all => [:build_blink_k20, :build_blink_k20_isr]
 when 'stm32f4'
   task :build_all => [:build_blink_stm32f4]
-else
+when 'lpc17xx'
   task :build_all => [:build_empty, :build_blink]
+when 'tm4c123gh6pm'
+  task :build_all => [:build_blink_tm4c123gh6pm]
+else
+  puts "I don't know what to build for this platform."
 end
