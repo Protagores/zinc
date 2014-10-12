@@ -1,16 +1,10 @@
 //! Low level system control (PLL, clock gating, ...)
 
-/// SysCtl base address
-static BASE: u32 = 0x400FE000;
-
 pub mod periph {
   //! peripheral system control
 
   use core::iter::range;
   use hal::tm4c123gh6pm::io::Reg;
-
-  /// Run mode clock gating control offset
-  static RMCGC_OFFSET: u32 = 0x600;
 
   /// Sysctl can reset/clock gate each module, as well as set various sleep and
   /// deep-sleep mode behaviour.
@@ -71,4 +65,43 @@ pub mod periph {
     pub static PORT_F: super::Periph = super::Periph { class: CLASS, id: 5 };
   }
 
+  pub mod timer {
+    //! Timer system control peripherals. Each timer has two independent
+    //! counters (A and B).
+
+    static TIMER_CLASS:   u8 = 0x4;
+    static TIMER_W_CLASS: u8 = 0x5c;
+
+    pub static TIMER_0: super::Periph = super::Periph { class: TIMER_CLASS,
+                                                        id: 0 };
+    pub static TIMER_1: super::Periph = super::Periph { class: TIMER_CLASS,
+                                                        id: 1 };
+    pub static TIMER_2: super::Periph = super::Periph { class: TIMER_CLASS,
+                                                        id: 2 };
+    pub static TIMER_3: super::Periph = super::Periph { class: TIMER_CLASS,
+                                                        id: 3 };
+    pub static TIMER_4: super::Periph = super::Periph { class: TIMER_CLASS,
+                                                        id: 4 };
+    pub static TIMER_5: super::Periph = super::Periph { class: TIMER_CLASS,
+                                                        id: 5 };
+
+    pub static TIMER_W_0: super::Periph = super::Periph { class: TIMER_W_CLASS,
+                                                          id: 0 };
+    pub static TIMER_W_1: super::Periph = super::Periph { class: TIMER_W_CLASS,
+                                                          id: 1 };
+    pub static TIMER_W_2: super::Periph = super::Periph { class: TIMER_W_CLASS,
+                                                          id: 2 };
+    pub static TIMER_W_3: super::Periph = super::Periph { class: TIMER_W_CLASS,
+                                                          id: 3 };
+    pub static TIMER_W_4: super::Periph = super::Periph { class: TIMER_W_CLASS,
+                                                          id: 4 };
+    pub static TIMER_W_5: super::Periph = super::Periph { class: TIMER_W_CLASS,
+                                                          id: 5 };
+  }
+
+  /// Run mode clock gating control offset
+  static RMCGC_OFFSET: u32 = 0x600;
 }
+
+/// SysCtl base address
+static BASE: u32 = 0x400FE000;

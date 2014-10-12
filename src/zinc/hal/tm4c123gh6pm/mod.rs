@@ -4,5 +4,6 @@
 pub mod io;
 pub mod sysctl;
 pub mod pin;
+pub mod timer;
 
 #[path="../../util/ioreg.rs"] mod util;

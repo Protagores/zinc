@@ -17,9 +17,14 @@
 
 #![experimental]
 #![feature(quote)]
+#![feature(phase)]
 #![crate_name="platformtree"]
 #![crate_type="rlib"]
 
+#[phase(plugin)]
+
+extern crate regex_macros;
+extern crate regex;
 extern crate syntax;
 #[cfg(test)] extern crate hamcrest;
 

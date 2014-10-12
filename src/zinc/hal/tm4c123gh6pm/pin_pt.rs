@@ -24,12 +24,12 @@ pub fn verify(_: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
 fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   let port_node = node.parent.clone().unwrap().upgrade().unwrap();
   let ref port_path = port_node.path;
+  let port = TokenString(port_path.clone());
 
   let error = | err: &str | {
     cx.parse_sess().span_diagnostic.span_err(port_node.path_span, err);
   };
 
-  let port = TokenString(port_path.clone());
 
   if node.name.is_none() {
     error("pin node must have a name");
@@ -41,7 +41,6 @@ fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
       "out" => "zinc::hal::pin::Out",
       "in"  => "zinc::hal::pin::In",
       bad   => {
-        let attr = node.get_attr("direction");
         error(format!("unknown direction `{}`, allowed values: `in`, `out`",
                       bad).as_slice());
         return;
@@ -53,9 +52,8 @@ fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   let pin_str = match from_str::<uint>(node.path.as_slice()).unwrap() {
     0 ...7  => &node.path,
     other  => {
-      cx.parse_sess().span_diagnostic.span_err(node.path_span,
-          format!("unknown pin `{}`, allowed values: 0...7",
-                  other).as_slice());
+      error(format!("unknown pin `{}`, allowed values: 0...7",
+                    other).as_slice());
       return;
     }
   };
