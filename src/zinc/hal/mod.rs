@@ -25,7 +25,7 @@ and each such struct has a `setup()` method that configures the hardware
 pub mod lpc17xx;
 pub mod stm32f4;
 pub mod k20;
-pub mod tm4c123gh6pm;
+pub mod tiva_c;
 
 mod cortex_common;
 pub mod cortex_m3;

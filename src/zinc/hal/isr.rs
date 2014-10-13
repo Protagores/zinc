@@ -31,8 +31,8 @@ extern crate core;
 #[cfg(mcu_k20)]
 #[path="k20/isr.rs"] pub mod isr_k20;
 
-#[cfg(mcu_tm4c123gh6pm)]
-#[path="tm4c123gh6pm/isr.rs"] pub mod isr_tm4c123gh6pm;
+#[cfg(mcu_tiva_c)]
+#[path="tiva_c/isr.rs"] pub mod isr_tiva_c;
 
 
 #[path="../util/lang_items.rs"] mod lang_items;

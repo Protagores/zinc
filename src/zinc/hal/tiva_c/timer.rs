@@ -1,8 +1,8 @@
 //! Timer configuration
 //! This code should support both standand and wide timers
 
-use hal::tm4c123gh6pm::sysctl;
-use hal::tm4c123gh6pm::io::Reg;
+use hal::tiva_c::sysctl;
+use hal::tiva_c::io::Reg;
 use hal::timer;
 
 /// There are 6 standard 16/32bit timers and 6 "wide" 32/64bit timers

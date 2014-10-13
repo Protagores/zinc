@@ -74,7 +74,7 @@ fn build_timer(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   };
 
   let mode = TokenString(
-    format!("zinc::hal::tm4c123gh6pm::timer::{}",
+    format!("zinc::hal::tiva_c::timer::{}",
             match mode.as_slice() {
               "periodic"   => "Periodic",
               "one-shot"   => "OneShot",
@@ -89,17 +89,17 @@ fn build_timer(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
                 return;
               }}));
 
-  let timer_name = TokenString(format!("zinc::hal::tm4c123gh6pm::timer::{}{}",
+  let timer_name = TokenString(format!("zinc::hal::tiva_c::timer::{}{}",
                                        if wide_timer {
                                          "TimerW"
                                        } else {
                                          "Timer"
                                        }, id));
 
-  node.set_type_name("zinc::hal::tm4c123gh6pm::timer::Timer".to_string());
+  node.set_type_name("zinc::hal::tiva_c::timer::Timer".to_string());
 
   let st = quote_stmt!(&*cx,
-      let $name = zinc::hal::tm4c123gh6pm::timer::Timer::new(
+      let $name = zinc::hal::tiva_c::timer::Timer::new(
           $timer_name, $mode, $prescale);
   );
   builder.add_main_statement(st);

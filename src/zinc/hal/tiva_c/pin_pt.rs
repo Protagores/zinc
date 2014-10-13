@@ -61,12 +61,12 @@ fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   let pin = TokenString(format!("{}u8", pin_str));
   let pin_name = TokenString(node.name.clone().unwrap());
 
-  node.set_type_name("zinc::hal::tm4c123gh6pm::pin::Pin".to_string());
+  node.set_type_name("zinc::hal::tiva_c::pin::Pin".to_string());
 
   /* XXX: need to handle pin muxing */
   let st = quote_stmt!(&*cx,
-      let $pin_name = zinc::hal::tm4c123gh6pm::pin::Pin::new(
-          zinc::hal::tm4c123gh6pm::pin::$port,
+      let $pin_name = zinc::hal::tiva_c::pin::Pin::new(
+          zinc::hal::tiva_c::pin::$port,
           $pin,
           $direction);
   );

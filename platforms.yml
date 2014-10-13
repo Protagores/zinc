@@ -6,5 +6,5 @@ stm32f4:
   arch:   cortex_m4
 k20:
   arch:   cortex_m4
-tm4c123gh6pm:
+tiva_c:
   arch:   cortex_m4

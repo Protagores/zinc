@@ -1,7 +1,7 @@
 _boot_checksum = 0; /* TODO(farcaller): extract this to lpc code only */
 _data_load = LOADADDR(.data);
 
-INCLUDE ./src/zinc/hal/tm4c123gh6pm/iomem.ld
+INCLUDE ./src/zinc/hal/tiva_c/iomem.ld
 
 ENTRY(main)
 

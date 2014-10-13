@@ -4,7 +4,7 @@ pub mod periph {
   //! peripheral system control
 
   use core::iter::range;
-  use hal::tm4c123gh6pm::io::Reg;
+  use hal::tiva_c::io::Reg;
 
   /// Sysctl can reset/clock gate each module, as well as set various sleep and
   /// deep-sleep mode behaviour.

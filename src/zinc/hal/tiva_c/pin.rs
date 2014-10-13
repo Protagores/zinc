@@ -3,8 +3,8 @@
 //! Pin muxing not implemented yet.
 
 use hal::pin::{GPIO, GPIODirection, In, Out, GPIOLevel, High, Low};
-use hal::tm4c123gh6pm::sysctl;
-use hal::tm4c123gh6pm::io::Reg;
+use hal::tiva_c::sysctl;
+use hal::tiva_c::io::Reg;
 
 /// The pins are accessed through ports. Each port has 8 pins and are identified
 /// by a letter (PortA, PortB, etc...).

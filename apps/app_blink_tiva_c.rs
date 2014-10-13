@@ -7,7 +7,7 @@ extern crate zinc;
 #[phase(plugin)] extern crate macro_platformtree;
 
 platformtree!(
-  tm4c123gh6pm@mcu {
+  tiva_c@mcu {
     clock {
       source = "MOSC";
       /* Y2 16Mhz oscillator on launchpad board */
