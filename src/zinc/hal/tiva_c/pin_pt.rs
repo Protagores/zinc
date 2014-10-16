@@ -49,6 +49,11 @@ fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
 
   let direction = TokenString(direction_str.to_string());
 
+  let function = match node.get_string_attr("function") {
+    None       => 0, /* Default to GPIO function */
+    Some(attr) => from_str::<u8>(attr.as_slice()).unwrap(),
+  };
+
   let pin_str = match from_str::<uint>(node.path.as_slice()).unwrap() {
     0 ...7  => &node.path,
     other  => {
@@ -68,7 +73,8 @@ fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
       let $pin_name = zinc::hal::tiva_c::pin::Pin::new(
           zinc::hal::tiva_c::pin::$port,
           $pin,
-          $direction);
+          $direction,
+          $function);
   );
   builder.add_main_statement(st);
 }

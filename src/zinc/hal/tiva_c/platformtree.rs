@@ -21,6 +21,7 @@ use node;
 
 mod pin_pt;
 mod timer_pt;
+mod uart_pt;
 
 pub fn attach(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   node.materializer.set(Some(verify));
@@ -28,16 +29,17 @@ pub fn attach(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
     add_node_dependency(&node, sub);
 
     match sub.path.as_slice() {
-      "gpio"  => pin_pt::attach(builder, cx, sub.clone()),
+      "gpio"  => pin_pt  ::attach(builder, cx, sub.clone()),
       "timer" => timer_pt::attach(builder, cx, sub.clone()),
-      _ => (),
+      "uart"  => uart_pt ::attach(builder, cx, sub.clone()),
+      _       => (),
     }
   }
 }
 
 fn verify(_: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   node.expect_no_attributes(cx);
-  node.expect_subnodes(cx, ["clock", "gpio", "timer"]);
+  node.expect_subnodes(cx, ["clock", "gpio", "timer", "uart"]);
 }
 
 pub fn add_node_dependency_on_clock(builder: &mut Builder,

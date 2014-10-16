@@ -53,10 +53,10 @@ pub struct Timer {
 
 impl Timer {
   /// Create and configure a Timer
-  pub fn new(tid:      TimerId,
+  pub fn new(id:      TimerId,
              mode:     Mode,
              prescale: u16) -> Timer {
-    let (periph, base, wide) = match tid {
+    let (periph, base, wide) = match id {
       Timer0  => (sysctl::periph::timer::TIMER_0,   TIMER_0_BASE,   false),
       Timer1  => (sysctl::periph::timer::TIMER_1,   TIMER_1_BASE,   false),
       Timer2  => (sysctl::periph::timer::TIMER_2,   TIMER_2_BASE,   false),

@@ -30,7 +30,8 @@ impl Pin {
   /// Create and configure a Pin
   pub fn new(pid:       PortID,
              pin_index: u8,
-             dir:       GPIODirection) -> Pin {
+             dir:       GPIODirection,
+             function:  u8) -> Pin {
 
     // Retrieve GPIO port peripheral to enable it
     let (periph, base) = match pid {
@@ -46,23 +47,35 @@ impl Pin {
 
     let pin = Pin { base: base, index: pin_index };
 
-    pin.configure(dir);
+    pin.configure(dir, function);
 
     pin
   }
 
   /// Configure GPIO pin
-  fn configure(&self, dir: GPIODirection) {
+  fn configure(&self, dir: GPIODirection, function: u8) {
     // Disable the GPIO during reconfig
     let den = Reg::new(self.base + DEN);
     den.bitband_write(self.index, false);
 
     self.set_direction(dir);
 
-    // Configure the "alternate function". 0 means GPIO, 1 means the port is
-    // driven by another peripheral.
+    // Configure the "alternate function". AFSEL 0 means GPIO, 1 means the port
+    // is driven by another peripheral. When AFSEL is 1 the actual function
+    // config goes into the CTL register.
     let afsel = Reg::new(self.base + AFSEL);
-    afsel.bitband_write(self.index, false);
+    let ctl   = Reg::new(self.base + CTL);
+
+    match function {
+      0 => afsel.bitband_write(self.index, false),
+      f => {
+        afsel.bitband_write(self.index, true);
+
+        let mut reg = ctl.read32();
+        reg |= (f as u32) << ((self.index as uint) * 4);
+        ctl.write32(reg);
+      }
+    }
 
     // We can chose to drive each GPIO at either 2, 4 or 8mA. Default to 2mA for
     // now.
@@ -136,4 +149,5 @@ static DATA    : u32 = 0x000;
 static DIR     : u32 = 0x400;
 static AFSEL   : u32 = 0x420;
 static DR2R    : u32 = 0x500;
+static CTL     : u32 = 0x52C;
 static DEN     : u32 = 0x51C;
