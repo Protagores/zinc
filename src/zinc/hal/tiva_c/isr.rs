@@ -1,6 +1,6 @@
 use core::option::{Option, None};
 
-static ISRCount: uint = 139;
+const ISRCount: uint = 139;
 
 #[link_section=".isr_vector_nvic"]
 #[no_mangle]
