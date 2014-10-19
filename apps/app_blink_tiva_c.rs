@@ -26,7 +26,7 @@ platformtree!(
       timer@w0 {
         /* prescale sysclk to 1Mhz since the wait code expects 1us
          * granularity */
-        prescale = 16;
+        prescale = 80;
         mode = "periodic";
       }
     }
@@ -48,6 +48,12 @@ platformtree!(
 pub fn run(args: &pt::run_args) {
   use zinc::hal::pin::GPIO;
   use zinc::hal::timer::Timer;
+
+  use core::option::{Some};
+
+  use zinc::hal::tiva_c::sysctl::clock::{MOSC, X16_0MHz, sysclk_configure};
+
+  sysclk_configure(MOSC, Some(X16_0MHz), true, Some(5));
 
   loop {
     args.led1.set_high();

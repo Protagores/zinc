@@ -3,22 +3,26 @@
 pub mod clock {
   //! Clock tree configuration
 
-  use core::option::{Option, None};
+  use core::iter::range;
+  use core::option::{Option, None, Some};
+  use hal::tiva_c::io::Reg;
 
-  /// Clock sources available on the system
+  /// Clock sources available on the system. The values are the RCC/RCC2 OSCSRC
+  /// field encoding.
+  #[deriving(PartialEq)]
   pub enum ClockSource {
-    /// The Precision Internal Oscillator @16MHz
-    PIOSC,
-    /// PIOSC divided by 4, resulting in a 4MHz source.
-    PIOSC_4MHz,
     /// The Main Oscillator, external crystal/oscillator on OSC pins.
     /// The possible frequencies are listed in MOSCSource.
-    MOSC,
+    MOSC       = 0,
+    /// The Precision Internal Oscillator @16MHz
+    PIOSC      = 1,
+    /// PIOSC divided by 4, resulting in a 4MHz source.
+    PIOSC_4MHz = 2,
     /// The Low Frequency Internal Oscillator @30kHz
-    LFIOSC,
+    LFIOSC     = 3,
     /// The Hibernation Oscillator, external crystal/oscillator on XOSC pins.
     /// Frequency should always be 32.768kHz
-    HOSC,
+    HOSC       = 7,
   }
 
   /// The chip supports a finite list of crystal frequencies for the MOSC, each
@@ -45,11 +49,128 @@ pub mod clock {
   }
 
   /// Configure the System Clock by setting the clock source and divisors.
-  fn sysclk_configure(source:      ClockSource,
-                      mosc_source: Option<MOSCFreq>,
-                      pll_div:     Option<uint>) {
-    
+  pub fn sysclk_configure(source:      ClockSource,
+                          mosc_source: Option<MOSCFreq>,
+                          use_pll:     bool,
+                          div:         Option<uint>) {
+    let rcc  = Reg::new(super::BASE + RCC_OFFSET);
+    let rcc2 = Reg::new(super::BASE + RCC2_OFFSET);
+
+    let mut rcc_val  = rcc.read32();
+    let mut rcc2_val = rcc.read32();
+
+    // Start off by disabling the PLL and dividers, we'll run from the system's
+    // clock source directly
+    rcc_val  |= 1 << 11; // Bypass PLL
+    rcc_val  &= !(1 << 22); // Don't use divider
+    rcc2_val |= 1 << 11; // Bypass PLL2
+
+    rcc.write32(rcc_val);
+    rcc.write32(rcc2_val);
+
+    // If want to switch to the Main Oscillator but it's disabled, we need to
+    // enable it and wait for it to lock
+    if source == MOSC && ((rcc_val & 1) != 0) {
+      let misc = Reg::new(super::BASE + MISC_OFFSET);
+
+      // Clear any pending MOSC power upinterrupt since we'll have to poll it
+      // below
+      misc.bitband_write(8, true);
+
+      // Enable MOSC
+      rcc_val &= !1;
+      rcc.write32(rcc_val);
+
+      let ris = Reg::new(super::BASE + RIS_OFFSET);
+
+      loop {
+        if ris.read32() & (1 << 8) != 0 {
+          // MOSC locked
+          break;
+        }
+      }
+
+      // XXX: What should we do if the MOSC didn't lock up?
+    }
+
+    // Clear previous crystal and source config
+    rcc_val &= !((3 << 4) | 0x1f << 6);
+    rcc2_val &= !(7 << 4);
+
+    rcc_val |= ((source as u32) << 4);
+    rcc2_val |= ((source as u32) << 4);
+
+    if source == MOSC {
+      // Set XTAL value
+      rcc_val |= (mosc_source.unwrap() as u32) << 6;
+    } else {
+      // Disable MOSC
+      rcc_val &= !(1 << 0);
+    }
+
+    rcc2_val |= 1 << 31; // Set USERCC2
+    rcc2_val |= 1 << 30; // Set DIV400
+
+    if use_pll {
+      rcc_val  &= !(1 << 13);
+      rcc2_val &= !(1 << 13);
+    } else {
+      rcc_val  |= 1 << 13;
+      rcc2_val |= 1 << 13;
+    }
+
+    rcc.write32(rcc_val);
+    rcc.write32(rcc2_val);
+
+    match div {
+      Some(div) => {
+        // Configure system divisor
+        rcc2_val &= !(0x7f << 22);
+        rcc2_val |= (div as u32) << 22;
+        rcc_val  |= 1 << 22;
+      }
+      _ => (),
+    }
+
+    let pllstat = Reg::new(super::BASE + PLLSTAT_OFFSET);
+
+    if use_pll {
+      let misc = Reg::new(super::BASE + MISC_OFFSET);
+
+      // Clear any pending PLL lock interrupt
+      misc.bitband_write(6, true);
+
+      // Wait till PLL is locked
+      loop {
+        if pllstat.read32() & 1 != 0 {
+          // PLL locked
+          break;
+        }
+      }
+
+      // Remove PLL bypass
+      rcc_val  &= !(1 << 11);
+      rcc2_val &= !(1 << 11);
+    }
+
+    rcc.write32(rcc_val);
+    rcc2.write32(rcc2_val);
   }
+
+  //// Raw Interrupt Status
+  const RIS_OFFSET: u32 = 0x50;
+
+  //// Masked Interrupt Status and Clear
+  const MISC_OFFSET: u32 = 0x58;
+
+  /// Run-mode clock configuration
+  const RCC_OFFSET: u32 = 0x60;
+
+  /// Run-mode clock configuration 2
+  const RCC2_OFFSET: u32 = 0x70;
+
+  /// PLL Status
+  const PLLSTAT_OFFSET: u32 = 0x168;
 }
 
 pub mod periph {

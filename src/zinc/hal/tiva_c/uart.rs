@@ -83,7 +83,7 @@ impl UART {
                word_len:  u8,
                parity:    uart::Parity,
                stop_bits: u8) {
-    let sysclk = 16_000_000u;
+    let sysclk = 80_000_000u;
 
     /* compute the baud rate divisor rounded to the nearest */
     let brd = ((((sysclk / 16) << 6) + baudrate / 2) / baudrate) as u32;
