@@ -3,8 +3,7 @@
 pub mod clock {
   //! Clock tree configuration
 
-  use core::iter::range;
-  use core::option::{Option, None, Some};
+  use core::option::{Option, Some};
   use hal::tiva_c::io::Reg;
 
   /// Clock sources available on the system. The values are the RCC/RCC2 OSCSRC
@@ -17,7 +16,7 @@ pub mod clock {
     /// The Precision Internal Oscillator @16MHz
     PIOSC      = 1,
     /// PIOSC divided by 4, resulting in a 4MHz source.
-    PIOSC_4MHz = 2,
+    PIOSC4MHz = 2,
     /// The Low Frequency Internal Oscillator @30kHz
     LFIOSC     = 3,
     /// The Hibernation Oscillator, external crystal/oscillator on XOSC pins.
@@ -28,6 +27,7 @@ pub mod clock {
   /// The chip supports a finite list of crystal frequencies for the MOSC, each
   /// having its own ID used to configure the PLL to output 400MHz.
   #[allow(missing_doc)]
+  #[allow(non_camel_case_types)]
   pub enum MOSCFreq {
     X5_0MHz    = 0x09,
     X5_12MHz   = 0x0A,
@@ -97,8 +97,8 @@ pub mod clock {
     rcc_val &= !((3 << 4) | 0x1f << 6);
     rcc2_val &= !(7 << 4);
 
-    rcc_val |= ((source as u32) << 4);
-    rcc2_val |= ((source as u32) << 4);
+    rcc_val |= (source as u32) << 4;
+    rcc2_val |= (source as u32) << 4;
 
     if source == MOSC {
       // Set XTAL value

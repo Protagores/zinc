@@ -64,16 +64,23 @@ impl Pin {
     // is driven by another peripheral. When AFSEL is 1 the actual function
     // config goes into the CTL register.
     let afsel = Reg::new(self.base + AFSEL);
-    let ctl   = Reg::new(self.base + CTL);
+    let pctl  = Reg::new(self.base + PCTL);
+
+
+    afsel.bitband_write(self.index, true);
 
     match function {
       0 => afsel.bitband_write(self.index, false),
       f => {
         afsel.bitband_write(self.index, true);
 
-        let mut reg = ctl.read32();
-        reg |= (f as u32) << ((self.index as uint) * 4);
-        ctl.write32(reg);
+        // let pctl_offset = (self.index as uint) * 4;
+
+        // let mut reg = pctl.read32();
+        // reg &= !(0xf << pctl_offset);
+        // reg |= (f as u32) << pctl_offset;
+
+        // pctl.write32(reg);
       }
     }
 
@@ -82,7 +89,23 @@ impl Pin {
     let drive = Reg::new(self.base + DR2R);
     drive.bitband_write(self.index, true);
 
-    // XXX TODO: configure open drain/pull up/pull down/slew rate if necessary
+    let drive = Reg::new(self.base + DR4R);
+    drive.bitband_write(self.index, false);
+
+    let drive = Reg::new(self.base + DR8R);
+    drive.bitband_write(self.index, false);
+
+    let drive = Reg::new(self.base + SLR);
+    drive.bitband_write(self.index, false);
+
+    // XXX TODO: configure open drain/pull up/pull down/slew rate if necessary    
+
+    let typ = Reg::new(self.base + ODR);
+    typ.bitband_write(self.index, false);
+    let typ = Reg::new(self.base + PUR);
+    typ.bitband_write(self.index, false);
+    let typ = Reg::new(self.base + PDR);
+    typ.bitband_write(self.index, false);
 
     // Enable GPIO
     den.bitband_write(self.index, true);
@@ -145,9 +168,15 @@ static PORT_E_BASE: u32 = 0x40024000;
 static PORT_F_BASE: u32 = 0x40025000;
 
 // Register offsets from port base
-static DATA    : u32 = 0x000;
-static DIR     : u32 = 0x400;
-static AFSEL   : u32 = 0x420;
-static DR2R    : u32 = 0x500;
-static CTL     : u32 = 0x52C;
-static DEN     : u32 = 0x51C;
+static DATA    : u32 = 0x000; /* 0 */
+static DIR     : u32 = 0x400; /* 0 */
+static AFSEL   : u32 = 0x420; /* 3 */
+static DR2R    : u32 = 0x500; /* 0xff */
+static DR4R    : u32 = 0x504; /* 0 */
+static DR8R    : u32 = 0x508; /* 0 */
+static ODR     : u32 = 0x50C; /* 0 */
+static PUR     : u32 = 0x510; /* 0 */
+static PDR     : u32 = 0x514; /* 0 */
+static SLR     : u32 = 0x518; /* 0 */
+static DEN     : u32 = 0x51C; /* 3 */
+static PCTL    : u32 = 0x52C; /* 222211 */

@@ -17,9 +17,6 @@
 
 use hal::tiva_c::sysctl;
 use hal::tiva_c::io::Reg;
-use hal::timer;
-
-use core::intrinsics::abort;
 
 use drivers::chario::CharIO;
 use hal::uart;
@@ -69,9 +66,6 @@ impl UART {
 
     periph.ensure_enabled();
 
-    let port = sysctl::periph::gpio::PORT_A;
-    port.ensure_enabled();
-
     uart.configure(baudrate, word_len, parity, stop_bits);
 
     uart
@@ -83,7 +77,7 @@ impl UART {
                word_len:  u8,
                parity:    uart::Parity,
                stop_bits: u8) {
-    let sysclk = 80_000_000u;
+    let sysclk = 16_000_000u;
 
     /* compute the baud rate divisor rounded to the nearest */
     let brd = ((((sysclk / 16) << 6) + baudrate / 2) / baudrate) as u32;
@@ -92,25 +86,37 @@ impl UART {
     /* Disable the UART before configuration */
     ctl.bitband_write(0, false);
 
+    /* Enable TX */
+    ctl.bitband_write(8, true);
+    /* Disable RX */
+    ctl.bitband_write(9, false);
+    ctl.bitband_write(5, false);
+
+    ctl.write32(0x301);
+
     let ibrd = Reg::new(self.base + IBRD);
-    ctl.write32(brd >> 6);
+    ibrd.write32(brd >> 6);
 
     let fbrd = Reg::new(self.base + FBRD);
-    ctl.write32(brd & ((1 << 6) - 1));
+    fbrd.write32(brd & ((1 << 6) - 1));
 
-    let crh = Reg::new(self.base + CRH);
+    let lcrh = Reg::new(self.base + CRH);
 
     /* This is where we can do the real config. */
-    crh.write32(0x60);
+    lcrh.write32(0x70);
 
     /* Enable the UART */
-    ctl.bitband_write(0, true);
+    ctl.write32(0x301);
   }
 }
 
 impl CharIO for UART {
   fn putc(&self, value: char) {
     let data = Reg::new(self.base + DATA);
+    let fr   = Reg::new(self.base + FR);
+
+    while fr.read32() & (1 << 5) != 0 {
+    }
 
     data.write32(value as u32);
   }
@@ -126,6 +132,7 @@ static UART_6_BASE: u32 = 0x40012000;
 static UART_7_BASE: u32 = 0x40013000;
 
 static DATA     : u32 = 0x00;
+static FR       : u32 = 0x18;
 static CTL      : u32 = 0x30;
 static IBRD     : u32 = 0x24;
 static FBRD     : u32 = 0x28;

@@ -49,9 +49,9 @@ fn build_pin(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
 
   let direction = TokenString(direction_str.to_string());
 
-  let function = match node.get_string_attr("function") {
+  let function = match node.get_int_attr("function") {
     None       => 0, /* Default to GPIO function */
-    Some(attr) => from_str::<u8>(attr.as_slice()).unwrap(),
+    Some(f)    => f as u8,
   };
 
   let pin_str = match from_str::<uint>(node.path.as_slice()).unwrap() {

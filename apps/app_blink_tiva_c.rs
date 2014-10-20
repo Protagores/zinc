@@ -15,8 +15,11 @@ platformtree!(
     }
 
     gpio {
+        PortA {
+          led1@1 { direction = "out"; }
+          }
         PortF {
-            led1@1 { direction = "out"; }
+        
             led2@2 { direction = "out"; }
       }
     }
@@ -44,7 +47,6 @@ platformtree!(
   }
 )
 
-#[no_split_stack]
 pub fn run(args: &pt::run_args) {
   use zinc::hal::pin::GPIO;
   use zinc::hal::timer::Timer;

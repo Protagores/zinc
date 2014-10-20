@@ -1,6 +1,5 @@
 //! Custom register access interface
 
-use util::volatile_cell::VolatileCell;
 use core::intrinsics::{volatile_load, volatile_store};
 
 /// Hardware register interface
