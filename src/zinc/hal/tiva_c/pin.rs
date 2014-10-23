@@ -21,9 +21,9 @@ pub enum PortID {
 /// Structure describing a single HW pin
 pub struct Pin {
   /// Base address for the port containing the pin
-  base:  u32,
+  regs: &'static reg::PORT,
   /// Pin index in the port
-  index: u8,
+  index: uint,
 }
 
 impl Pin {
@@ -34,18 +34,18 @@ impl Pin {
              function:  u8) -> Pin {
 
     // Retrieve GPIO port peripheral to enable it
-    let (periph, base) = match pid {
-      PortA => (sysctl::periph::gpio::PORT_A, PORT_A_BASE),
-      PortB => (sysctl::periph::gpio::PORT_B, PORT_B_BASE),
-      PortC => (sysctl::periph::gpio::PORT_C, PORT_C_BASE),
-      PortD => (sysctl::periph::gpio::PORT_D, PORT_D_BASE),
-      PortE => (sysctl::periph::gpio::PORT_E, PORT_E_BASE),
-      PortF => (sysctl::periph::gpio::PORT_F, PORT_F_BASE),
+    let (periph, regs) = match pid {
+      PortA => (sysctl::periph::gpio::PORT_A, reg::PORT_A),
+      PortB => (sysctl::periph::gpio::PORT_B, reg::PORT_B),
+      PortC => (sysctl::periph::gpio::PORT_C, reg::PORT_C),
+      PortD => (sysctl::periph::gpio::PORT_D, reg::PORT_D),
+      PortE => (sysctl::periph::gpio::PORT_E, reg::PORT_E),
+      PortF => (sysctl::periph::gpio::PORT_F, reg::PORT_F),
     };
 
     periph.ensure_enabled();
 
-    let pin = Pin { base: base, index: pin_index };
+    let pin = Pin { regs: reg::get_ref(regs), index: pin_index as uint };
 
     pin.configure(dir, function);
 
@@ -55,24 +55,19 @@ impl Pin {
   /// Configure GPIO pin
   fn configure(&self, dir: GPIODirection, function: u8) {
     // Disable the GPIO during reconfig
-    let den = Reg::new(self.base + DEN);
-    den.bitband_write(self.index, false);
+    self.regs.den.set_den(self.index, false);
 
     self.set_direction(dir);
 
     // Configure the "alternate function". AFSEL 0 means GPIO, 1 means the port
     // is driven by another peripheral. When AFSEL is 1 the actual function
     // config goes into the CTL register.
-    let afsel = Reg::new(self.base + AFSEL);
-    let pctl  = Reg::new(self.base + PCTL);
-
-
-    afsel.bitband_write(self.index, true);
-
     match function {
-      0 => afsel.bitband_write(self.index, false),
+      0 => {
+        self.regs.afsel.set_afsel(self.index, reg::GPIO);
+      },
       f => {
-        afsel.bitband_write(self.index, true);
+        self.regs.afsel.set_afsel(self.index, reg::PERIPHERAL);
 
         // let pctl_offset = (self.index as uint) * 4;
 
@@ -86,77 +81,141 @@ impl Pin {
 
     // We can chose to drive each GPIO at either 2, 4 or 8mA. Default to 2mA for
     // now.
-    let drive = Reg::new(self.base + DR2R);
-    drive.bitband_write(self.index, true);
+    self.regs.dr2r.set_dr2r(self.index, true);
+    self.regs.dr4r.set_dr4r(self.index, false);
+    self.regs.dr8r.set_dr8r(self.index, false);
 
-    let drive = Reg::new(self.base + DR4R);
-    drive.bitband_write(self.index, false);
+    // XXX TODO: configure open drain/pull up/pull down/slew rate if necessary
 
-    let drive = Reg::new(self.base + DR8R);
-    drive.bitband_write(self.index, false);
-
-    let drive = Reg::new(self.base + SLR);
-    drive.bitband_write(self.index, false);
-
-    // XXX TODO: configure open drain/pull up/pull down/slew rate if necessary    
-
-    let typ = Reg::new(self.base + ODR);
-    typ.bitband_write(self.index, false);
-    let typ = Reg::new(self.base + PUR);
-    typ.bitband_write(self.index, false);
-    let typ = Reg::new(self.base + PDR);
-    typ.bitband_write(self.index, false);
+    self.regs.odr.set_odr(self.index, false);
+    self.regs.pur.set_pur(self.index, false);
+    self.regs.pdr.set_pdr(self.index, false);
 
     // Enable GPIO
-    den.bitband_write(self.index, true);
+    self.regs.den.set_den(self.index, true);
   }
 
-  /// Returns a register containing the address to read and write the level of a
-  /// specific GPIO pin.
-  ///
-  /// Bits [9:2] of the address are a mask to address only specific pins in a
-  /// port.
-  fn data_reg(&self) -> Reg {
-    let off: u32 = 1u32 << ((self.index as uint) + 2);
-
-    Reg::new(self.base + DATA + off)
+  fn set_level(&self, level: bool) {
+    self.regs.data.set_data(self.index, level);
   }
 }
 
 impl GPIO for Pin {
   /// Sets output GPIO value to high.
   fn set_high(&self) {
-    let r = self.data_reg();
-
-    r.write32(0xff);
+    self.set_level(true);
   }
 
   /// Sets output GPIO value to low.
   fn set_low(&self) {
-    let r = self.data_reg();
-
-    r.write32(0x00);
+    self.set_level(false);
   }
 
   /// Returns input GPIO level.
   fn level(&self) -> GPIOLevel {
-    let r = self.data_reg();
-
-    if r.read32() == 0 {
-      Low
-    } else {
-      High
+    match self.regs.data.data(self.index) {
+      true  => High,
+      false => Low,
     }
   }
 
   /// Sets output GPIO direction.
   fn set_direction(&self, dir: GPIODirection) {
-    let reg = Reg::new(self.base + DIR);
-    reg.bitband_write(self.index,
-                      match dir {
-                        In  => false,
-                        Out => true,
-                      });
+    self.regs.dir.set_dir(self.index,
+                          match dir {
+                            In  => reg::INPUT,
+                            Out => reg::OUTPUT,
+                          });
+  }
+}
+
+pub mod reg {
+  //! Pin registers definition
+
+  use util::volatile_cell::VolatileCell;
+  use core::ops::Drop;
+  use core::intrinsics::transmute;
+
+  ioregs!(PORT = {
+    0x3FC => reg32 data {
+      //! Pin value
+      0..7   => data[8]
+    }
+
+    0x400 => reg32 dir {
+      //! Pin direction
+      0..7   => dir[8] {
+        0 => INPUT,
+        1 => OUTPUT,
+      }
+    }
+
+    0x420 => reg32 afsel {
+      //! Pin alternate function
+      0..7   => afsel[8] {
+        0 => GPIO,
+        1 => PERIPHERAL,
+      }
+    }
+
+    0x500 => reg32 dr2r {
+      //! Select 2mA drive strength
+      0..7   => dr2r[8]
+    }
+
+    0x504 => reg32 dr4r {
+      //! Select 4mA drive strength
+      0..7   => dr4r[8]
+    }
+
+    0x508 => reg32 dr8r {
+      //! Select 8mA drive strength
+      0..7   => dr8r[8]
+    }
+
+    0x50C => reg32 odr {
+      //! Configure pin as open drain
+      0..7   => odr[8]
+    }
+
+    0x510 => reg32 pur {
+      //! Enable pin pull-up
+      0..7   => pur[8]
+    }
+
+    0x514 => reg32 pdr {
+      //! Enable pin pull-down
+      0..7   => pdr[8]
+    }
+
+    0x518 => reg32 slr {
+      //! Slew rate control enable (only available for 8mA drive strength)
+      0..7   => slr[8]
+    }
+
+    0x51C => reg32 den {
+      //! Enable pin
+      0..7   => den[8]
+    }
+
+    0x52C => reg32 pctl {
+      //! Pin function selection when afsel is set for the pin.
+      0..31   => pctl
+    }
+  })
+
+  pub const PORT_A: *const PORT = 0x40004000 as *const PORT;
+  pub const PORT_B: *const PORT = 0x40005000 as *const PORT;
+  pub const PORT_C: *const PORT = 0x40006000 as *const PORT;
+  pub const PORT_D: *const PORT = 0x40007000 as *const PORT;
+  pub const PORT_E: *const PORT = 0x40024000 as *const PORT;
+  pub const PORT_F: *const PORT = 0x40025000 as *const PORT;
+
+  /// Hack to get a reference to one of the register definitions above
+  pub fn get_ref<T>(t: *const T) -> &'static T {
+    unsafe {
+      &*t
+    }
   }
 }
 
@@ -168,15 +227,15 @@ static PORT_E_BASE: u32 = 0x40024000;
 static PORT_F_BASE: u32 = 0x40025000;
 
 // Register offsets from port base
-static DATA    : u32 = 0x000; /* 0 */
-static DIR     : u32 = 0x400; /* 0 */
-static AFSEL   : u32 = 0x420; /* 3 */
-static DR2R    : u32 = 0x500; /* 0xff */
-static DR4R    : u32 = 0x504; /* 0 */
-static DR8R    : u32 = 0x508; /* 0 */
-static ODR     : u32 = 0x50C; /* 0 */
-static PUR     : u32 = 0x510; /* 0 */
-static PDR     : u32 = 0x514; /* 0 */
-static SLR     : u32 = 0x518; /* 0 */
-static DEN     : u32 = 0x51C; /* 3 */
-static PCTL    : u32 = 0x52C; /* 222211 */
+static DATA    : u32 = 0x000;
+static DIR     : u32 = 0x400;
+static AFSEL   : u32 = 0x420;
+static DR2R    : u32 = 0x500;
+static DR4R    : u32 = 0x504;
+static DR8R    : u32 = 0x508;
+static ODR     : u32 = 0x50C;
+static PUR     : u32 = 0x510;
+static PDR     : u32 = 0x514;
+static SLR     : u32 = 0x518;
+static DEN     : u32 = 0x51C;
+static PCTL    : u32 = 0x52C;
