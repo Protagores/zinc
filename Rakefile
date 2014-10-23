@@ -180,7 +180,7 @@ when 'k20'
 when 'stm32f4'
   task :build_all => [:build_blink_stm32f4]
 when 'lpc17xx'
-  task :build_all => [:build_empty, :build_blink, :build_uart, :build_dht22]
+  task :build_all => [:build_empty, :build_blink]
 when 'tiva_c'
   task :build_all => [:build_blink_tiva_c, :build_uart_tiva_c]
 else
