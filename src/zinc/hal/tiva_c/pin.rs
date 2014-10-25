@@ -4,7 +4,7 @@
 
 use hal::pin::{GPIO, GPIODirection, In, Out, GPIOLevel, High, Low};
 use hal::tiva_c::sysctl;
-use hal::tiva_c::io::Reg;
+use hal::tiva_c::io;
 
 /// The pins are accessed through ports. Each port has 8 pins and are identified
 /// by a letter (PortA, PortB, etc...).
@@ -20,8 +20,8 @@ pub enum PortID {
 
 /// Structure describing a single HW pin
 pub struct Pin {
-  /// Base address for the port containing the pin
-  regs: &'static reg::PORT,
+  /// Timer register interface
+  regs: &'static reg::Port,
   /// Pin index in the port
   index: uint,
 }
@@ -45,7 +45,7 @@ impl Pin {
 
     periph.ensure_enabled();
 
-    let pin = Pin { regs: reg::get_ref(regs), index: pin_index as uint };
+    let pin = Pin { regs: io::get_reg_ref(regs), index: pin_index as uint };
 
     pin.configure(dir, function);
 
@@ -69,13 +69,7 @@ impl Pin {
       f => {
         self.regs.afsel.set_afsel(self.index, reg::PERIPHERAL);
 
-        // let pctl_offset = (self.index as uint) * 4;
-
-        // let mut reg = pctl.read32();
-        // reg &= !(0xf << pctl_offset);
-        // reg |= (f as u32) << pctl_offset;
-
-        // pctl.write32(reg);
+        self.regs.pctl.set_pctl(self.index, f as u32);
       }
     }
 
@@ -131,12 +125,10 @@ impl GPIO for Pin {
 
 pub mod reg {
   //! Pin registers definition
-
   use util::volatile_cell::VolatileCell;
   use core::ops::Drop;
-  use core::intrinsics::transmute;
 
-  ioregs!(PORT = {
+  ioregs!(Port = {
     0x3FC => reg32 data {
       //! Pin value
       0..7   => data[8]
@@ -200,42 +192,14 @@ pub mod reg {
 
     0x52C => reg32 pctl {
       //! Pin function selection when afsel is set for the pin.
-      0..31   => pctl
+      0..31   => pctl[8]
     }
   })
 
-  pub const PORT_A: *const PORT = 0x40004000 as *const PORT;
-  pub const PORT_B: *const PORT = 0x40005000 as *const PORT;
-  pub const PORT_C: *const PORT = 0x40006000 as *const PORT;
-  pub const PORT_D: *const PORT = 0x40007000 as *const PORT;
-  pub const PORT_E: *const PORT = 0x40024000 as *const PORT;
-  pub const PORT_F: *const PORT = 0x40025000 as *const PORT;
-
-  /// Hack to get a reference to one of the register definitions above
-  pub fn get_ref<T>(t: *const T) -> &'static T {
-    unsafe {
-      &*t
-    }
-  }
+  pub const PORT_A: *const Port = 0x40004000 as *const Port;
+  pub const PORT_B: *const Port = 0x40005000 as *const Port;
+  pub const PORT_C: *const Port = 0x40006000 as *const Port;
+  pub const PORT_D: *const Port = 0x40007000 as *const Port;
+  pub const PORT_E: *const Port = 0x40024000 as *const Port;
+  pub const PORT_F: *const Port = 0x40025000 as *const Port;
 }
-
-static PORT_A_BASE: u32 = 0x40004000;
-static PORT_B_BASE: u32 = 0x40005000;
-static PORT_C_BASE: u32 = 0x40006000;
-static PORT_D_BASE: u32 = 0x40007000;
-static PORT_E_BASE: u32 = 0x40024000;
-static PORT_F_BASE: u32 = 0x40025000;
-
-// Register offsets from port base
-static DATA    : u32 = 0x000;
-static DIR     : u32 = 0x400;
-static AFSEL   : u32 = 0x420;
-static DR2R    : u32 = 0x500;
-static DR4R    : u32 = 0x504;
-static DR8R    : u32 = 0x508;
-static ODR     : u32 = 0x50C;
-static PUR     : u32 = 0x510;
-static PDR     : u32 = 0x514;
-static SLR     : u32 = 0x518;
-static DEN     : u32 = 0x51C;
-static PCTL    : u32 = 0x52C;

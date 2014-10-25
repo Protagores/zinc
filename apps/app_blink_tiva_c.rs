@@ -15,12 +15,9 @@ platformtree!(
     }
 
     gpio {
-        PortA {
-          led1@1 { direction = "out"; }
-          }
-        PortF {
-        
-            led2@2 { direction = "out"; }
+      PortF {
+        led1@1 { direction = "out"; }
+        led2@2 { direction = "out"; }
       }
     }
 
