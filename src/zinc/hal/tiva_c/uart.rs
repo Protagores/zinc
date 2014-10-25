@@ -17,6 +17,7 @@
 
 use hal::tiva_c::sysctl;
 use hal::tiva_c::io::Reg;
+use hal::tiva_c::io;
 
 use drivers::chario::CharIO;
 use hal::uart;
@@ -38,31 +39,31 @@ pub enum UARTID {
 }
 
 /// Structure describing a single UART
-pub struct UART {
-  /// Base address for this UART
-  base    : u32,
+pub struct Uart {
+  /// UART register interface
+  regs: &'static reg::Uart,
 }
 
-impl UART {
+impl Uart {
   /// Create and setup a UART.
   pub fn new(id:        UARTID,
              baudrate:  uint,
              word_len:  u8,
              parity:    uart::Parity,
-             stop_bits: u8) -> UART {
+             stop_bits: u8) -> Uart {
 
-    let (periph, base) = match id {
-      UART0 => (sysctl::periph::uart::UART_0,  UART_0_BASE),
-      UART1 => (sysctl::periph::uart::UART_1,  UART_1_BASE),
-      UART2 => (sysctl::periph::uart::UART_2,  UART_2_BASE),
-      UART3 => (sysctl::periph::uart::UART_3,  UART_3_BASE),
-      UART4 => (sysctl::periph::uart::UART_4,  UART_4_BASE),
-      UART5 => (sysctl::periph::uart::UART_5,  UART_5_BASE),
-      UART6 => (sysctl::periph::uart::UART_6,  UART_6_BASE),
-      UART7 => (sysctl::periph::uart::UART_7,  UART_7_BASE),
+    let (periph, regs) = match id {
+      UART0 => (sysctl::periph::uart::UART_0, reg::UART_0),
+      UART1 => (sysctl::periph::uart::UART_1, reg::UART_1),
+      UART2 => (sysctl::periph::uart::UART_2, reg::UART_2),
+      UART3 => (sysctl::periph::uart::UART_3, reg::UART_3),
+      UART4 => (sysctl::periph::uart::UART_4, reg::UART_4),
+      UART5 => (sysctl::periph::uart::UART_5, reg::UART_5),
+      UART6 => (sysctl::periph::uart::UART_6, reg::UART_6),
+      UART7 => (sysctl::periph::uart::UART_7, reg::UART_7),
     };
 
-    let uart = UART { base: base };
+    let uart = Uart { regs: io::get_reg_ref(regs) };
 
     periph.ensure_enabled();
 
@@ -82,58 +83,95 @@ impl UART {
     /* compute the baud rate divisor rounded to the nearest */
     let brd = ((((sysclk / 16) << 6) + baudrate / 2) / baudrate) as u32;
 
-    let ctl = Reg::new(self.base + CTL);
-    /* Disable the UART before configuration */
-    ctl.bitband_write(0, false);
+    self.regs.ctl
+      /* Disable the UART before configuration */
+      .set_uarten(false)
+      /* Enable TX */
+      .set_txe(true)
+      /* Enable TX */
+      .set_rxe(false)
+      /* Disable High-Speed */
+      .set_hse(false);
 
-    /* Enable TX */
-    ctl.bitband_write(8, true);
-    /* Disable RX */
-    ctl.bitband_write(9, false);
-    ctl.bitband_write(5, false);
+    self.regs.ibrd.set_divint(brd >> 6);
+    self.regs.fbrd.set_divfrac(brd & ((1 << 6) - 1));
 
-    ctl.write32(0x301);
-
-    let ibrd = Reg::new(self.base + IBRD);
-    ibrd.write32(brd >> 6);
-
-    let fbrd = Reg::new(self.base + FBRD);
-    fbrd.write32(brd & ((1 << 6) - 1));
-
-    let lcrh = Reg::new(self.base + CRH);
-
-    /* This is where we can do the real config. */
-    lcrh.write32(0x70);
+    self.regs.crh.set_wlen(reg::WLEN_8);
 
     /* Enable the UART */
-    ctl.write32(0x301);
+    self.regs.ctl.set_uarten(true);
   }
 }
 
-impl CharIO for UART {
+impl CharIO for Uart {
   fn putc(&self, value: char) {
-    let data = Reg::new(self.base + DATA);
-    let fr   = Reg::new(self.base + FR);
 
-    while fr.read32() & (1 << 5) != 0 {
+    while self.regs.fr.txff() {
     }
 
-    data.write32(value as u32);
+    self.regs.data.set_data(value as u32);
   }
 }
 
-static UART_0_BASE: u32 = 0x4000C000;
-static UART_1_BASE: u32 = 0x4000D000;
-static UART_2_BASE: u32 = 0x4000E000;
-static UART_3_BASE: u32 = 0x4000F000;
-static UART_4_BASE: u32 = 0x40010000;
-static UART_5_BASE: u32 = 0x40011000;
-static UART_6_BASE: u32 = 0x40012000;
-static UART_7_BASE: u32 = 0x40013000;
+pub mod reg {
+  //! Uart registers definition
+  use util::volatile_cell::VolatileCell;
+  use core::ops::Drop;
 
-static DATA     : u32 = 0x00;
-static FR       : u32 = 0x18;
-static CTL      : u32 = 0x30;
-static IBRD     : u32 = 0x24;
-static FBRD     : u32 = 0x28;
-static CRH      : u32 = 0x2c;
+  ioregs!(Uart = {
+    0x00 => reg32 data {
+      0..11 => data,     //= RX/TX fifo data
+    }
+    0x18 => reg32 fr {
+      0     => ctx:  ro, //= clear-to-send signal is asserted
+      3     => busy: ro, //= UART is busy
+      4     => rxfe: ro, //= RX FIFO is empty
+      5     => txff: ro, //= TX FIFO is full
+      6     => rxff: ro, //= RX FIFO is full
+      7     => txfe: ro, //= TX FIFO is empty
+    }
+    0x24 => reg32 ibrd {
+      0..15 => divint,   //= Baud-Rate divisor (integer part)
+    }
+    0x28 => reg32 fbrd {
+      0..5  => divfrac,  //= Baud-Rate divisor (fractional part)
+    }
+    0x2C => reg32 crh {
+      0     => brk,      //= UART send break
+      1     => pen,      //= UART parity enable
+      2     => eps,      //= UART even parity select
+      3     => stp2,     //= UART two stop bits select
+      4     => fen,      //= UART enable FIFOs
+      5..6  => wlen {    //! UART world length
+        0 => WLEN_5,
+        1 => WLEN_6,
+        2 => WLEN_7,
+        3 => WLEN_8,
+      }
+      7     => sps,      //= UART stick parity select
+    }
+    0x30 => reg32 ctl {
+      0     => uarten,   //= UART enable
+      1     => siren,    //= UART SIR enable
+      2     => sirlp,    //= UART SIR low-power mode
+      3     => smart,    //= ISO 7816 Smart Card mode
+      4     => eot,      //= End-of-Transmission, TXRIS behaviour
+      5     => hse,      //= High-Speed enable
+      7     => lbe,      //= UART loopback enable
+      8     => txe,      //= UART TX enable
+      9     => rxe,      //= UART RX enable
+      11    => rts,      //= Request-to-Send
+      14    => rtsen,    //= Enable Request-to-Send
+      15    => ctsen,    //= Enable Clear-to-Send
+    }
+  })
+
+  pub const UART_0: *const Uart = 0x4000C000 as *const Uart;
+  pub const UART_1: *const Uart = 0x4000D000 as *const Uart;
+  pub const UART_2: *const Uart = 0x4000E000 as *const Uart;
+  pub const UART_3: *const Uart = 0x4000F000 as *const Uart;
+  pub const UART_4: *const Uart = 0x40010000 as *const Uart;
+  pub const UART_5: *const Uart = 0x40011000 as *const Uart;
+  pub const UART_6: *const Uart = 0x40012000 as *const Uart;
+  pub const UART_7: *const Uart = 0x40013000 as *const Uart;
+}

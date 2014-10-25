@@ -100,11 +100,11 @@ pub fn build_uart(builder: &mut Builder,
     s  => from_str::<u8>(s).unwrap(),
   };
 
-  sub.set_type_name("zinc::hal::tiva_c::uart::UART".to_string());
+  sub.set_type_name("zinc::hal::tiva_c::uart::Uart".to_string());
   let uart_name = TokenString(sub.name.clone().unwrap());
 
   let st = quote_stmt!(&*cx,
-      let $uart_name = zinc::hal::tiva_c::uart::UART::new(
+      let $uart_name = zinc::hal::tiva_c::uart::Uart::new(
           zinc::hal::tiva_c::uart::$uart_peripheral,
           $baud_rate,
           $word_len,

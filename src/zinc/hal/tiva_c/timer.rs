@@ -2,7 +2,6 @@
 //! This code should support both standand and wide timers
 
 use hal::tiva_c::sysctl;
-use hal::tiva_c::io::Reg;
 use hal::timer;
 use hal::tiva_c::io;
 
@@ -56,7 +55,7 @@ impl Timer {
   /// Create and configure a Timer
   pub fn new(id:      TimerId,
              mode:     Mode,
-             prescale: u16) -> Timer {
+             prescale: u32) -> Timer {
     let (periph, regs, wide) = match id {
       Timer0  => (sysctl::periph::timer::TIMER_0,   reg::TIMER_0,   false),
       Timer1  => (sysctl::periph::timer::TIMER_1,   reg::TIMER_1,   false),
@@ -83,7 +82,7 @@ impl Timer {
 
   /// Configure timer registers
   /// XXX Only Periodic and OneShot modes are implemented so far
-  pub fn configure(&self, prescale: u16) {
+  pub fn configure(&self, prescale: u32) {
 
     // Make sure the timer is disabled before making changes.
     self.regs.ctl.set_taen(false);

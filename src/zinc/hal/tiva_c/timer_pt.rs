@@ -51,7 +51,7 @@ fn build_timer(builder: &mut Builder, cx: &mut ExtCtxt, node: Rc<node::Node>) {
   }
 
   let name = TokenString(node.name.clone().unwrap());
-  let prescale = node.get_int_attr("prescale").unwrap() as u16;
+  let prescale = node.get_int_attr("prescale").unwrap() as u32;
   let mode = node.get_string_attr("mode").unwrap();
 
   // Timer path is in the form "w?[0-5][A-B]":
